@@ -1,0 +1,278 @@
+---
+description: This file describes Maybe's design system and how views should be styled
+globs: app/views/**,app/helpers/**,app/javascript/controllers/**
+alwaysApply: true
+---
+<!--
+이 파일은 TailwindCSS 4.x를 사용하는 Rails 프로젝트의 UI/UX 디자인 가이드라인을 정의합니다.
+-->
+
+Use the rules below when:
+
+- You are writing HTML
+- You are writing CSS
+- You are writing styles in a JavaScript Stimulus controller
+
+## Rules for AI (mandatory)
+
+The codebase uses TailwindCSS v4.x (the newest version) with a custom design system defined in [design-system.css](mdc:app/assets/stylesheets/design-system.css)
+
+- Always start by referencing [design-system.css](mdc:app/assets/stylesheets/design-system.css) to see the base primitives, functional tokens, and component tokens we use in the codebase
+- Always prefer using the functional "tokens" defined in the design system when possible:
+  - Example 1: use `text-primary` rather than `text-white`
+  - Example 2: use `bg-container` rather than `bg-white`
+  - Example 3: use `border border-primary` rather than `border border-gray-200`
+- Never create new styles in [design-system.css](mdc:app/assets/stylesheets/design-system.css) or [application.css](mdc:app/assets/stylesheets/application.css) without explicitly receiving permission to do so
+- Follow the established naming conventions for custom classes in the design system
+
+## TailwindCSS 4.x Specific Guidelines
+
+### Design System Structure
+
+Your design system should follow this structure:
+
+```css
+/* app/assets/stylesheets/design-system.css */
+
+/* Base primitives - colors, spacing, typography */
+:root {
+  --color-primary: #3b82f6;
+  --color-secondary: #64748b;
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  /* ... */
+}
+
+/* Functional tokens - semantic meanings */
+.text-primary { color: var(--color-primary); }
+.bg-surface { background-color: var(--color-surface); }
+.border-primary { border-color: var(--color-primary); }
+
+/* Component tokens - reusable components */
+.btn-primary { /* component styles */ }
+.card { /* component styles */ }
+```
+
+### Class Usage Priorities
+
+1. **First choice**: Use design system tokens (e.g., `text-primary`, `bg-surface`)
+2. **Second choice**: Use standard TailwindCSS utilities (e.g., `text-lg`, `p-4`)
+3. **Last resort**: Create custom classes (only with permission)
+
+### Responsive Design
+
+- Use TailwindCSS responsive prefixes: `sm:`, `md:`, `lg:`, `xl:`, `2xl:`
+- Follow mobile-first approach
+- Test on multiple screen sizes
+
+```html
+<!-- Good: Responsive design -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  <!-- content -->
+</div>
+```
+
+## General UI/UX Guidelines
+
+### Semantic HTML
+
+- Always generate semantic HTML
+- Use appropriate HTML elements for their intended purpose:
+  - `<button>` for actions
+  - `<a>` for navigation
+  - `<main>`, `<section>`, `<article>` for content structure
+  - `<nav>` for navigation areas
+
+```html
+<!-- Good: Semantic structure -->
+<main class="container mx-auto">
+  <section class="hero bg-primary text-white">
+    <h1 class="text-4xl font-bold">Welcome</h1>
+  </section>
+  <nav aria-label="Main navigation">
+    <!-- navigation items -->
+  </nav>
+</main>
+```
+
+### Accessibility
+
+- Ensure proper accessibility attributes:
+  - `aria-label`, `aria-describedby` for screen readers
+  - `alt` text for images
+  - `role` attributes when necessary
+- Maintain appropriate contrast ratios (WCAG AA minimum: 4.5:1)
+- Ensure keyboard navigation works
+- Use focus indicators
+
+```html
+<!-- Good: Accessible button -->
+<button
+  class="btn-primary focus:ring-2 focus:ring-primary"
+  aria-label="Submit form"
+  type="submit"
+>
+  Submit
+</button>
+```
+
+### Typography
+
+- Use design system typography tokens
+- Maintain consistent hierarchy (h1-h6)
+- Ensure readable line heights
+- Use appropriate font weights
+
+```html
+<!-- Good: Typography hierarchy -->
+<h1 class="text-3xl font-bold text-primary">Main Title</h1>
+<h2 class="text-2xl font-semibold text-secondary">Section Title</h2>
+<p class="text-base leading-relaxed text-body">Body text content</p>
+```
+
+## Component Guidelines
+
+### Native HTML Preference
+
+- Prefer native HTML elements over custom JavaScript components when possible
+- Use progressive enhancement - ensure functionality works without JavaScript
+- Examples of preferred native elements:
+  - `<dialog>` for modals
+  - `<details><summary>` for disclosures/accordions
+  - `<select>` for dropdowns
+  - `<input type="date">` for date pickers
+
+```html
+<!-- Good: Native modal -->
+<dialog class="modal bg-white rounded-lg shadow-xl">
+  <form method="dialog">
+    <h2 class="text-xl font-bold mb-4">Modal Title</h2>
+    <p class="mb-4">Modal content here</p>
+    <button class="btn-secondary">Close</button>
+  </form>
+</dialog>
+```
+
+### Component Interface Design
+
+- Keep component interfaces simple and predictable
+- Use consistent naming patterns
+- Document complex component behavior
+- Provide clear prop/parameter types
+
+### Hotwire Integration
+
+- Design components to work well with Turbo frames
+- Use data attributes for Stimulus controllers
+- Ensure smooth transitions with Turbo Drive
+
+```html
+<!-- Good: Hotwire-friendly component -->
+<div data-controller="dropdown" class="relative">
+  <button
+    data-action="click->dropdown#toggle"
+    class="btn-primary"
+  >
+    Toggle Dropdown
+  </button>
+  <div
+    data-dropdown-target="menu"
+    class="dropdown-menu hidden"
+  >
+    <!-- menu items -->
+  </div>
+</div>
+```
+
+## Performance Considerations
+
+### CSS Optimization
+
+- Use Tailwind's purge feature to remove unused CSS
+- Minimize custom CSS additions
+- Use efficient selectors and avoid deep nesting
+- Group related styles together
+
+### Asset Optimization
+
+- Optimize images (WebP format when possible)
+- Use appropriate image sizes for different breakpoints
+- Consider lazy loading for non-critical content
+- Minimize bundle sizes
+
+### Loading States
+
+- Provide loading indicators for async operations
+- Use skeleton screens for better perceived performance
+- Implement proper error states
+
+```html
+<!-- Good: Loading state -->
+<div data-controller="async-content">
+  <div data-async-content-target="loading" class="animate-pulse">
+    <div class="h-4 bg-gray-200 rounded mb-2"></div>
+    <div class="h-4 bg-gray-200 rounded mb-2"></div>
+  </div>
+  <div data-async-content-target="content" class="hidden">
+    <!-- actual content -->
+  </div>
+</div>
+```
+
+## Form Design Guidelines
+
+### Form Structure
+
+- Use proper form labels and fieldsets
+- Group related fields together
+- Provide clear validation messages
+- Use appropriate input types
+
+```html
+<!-- Good: Form structure -->
+<form class="space-y-6">
+  <fieldset class="border border-gray-200 rounded p-4">
+    <legend class="font-semibold">Personal Information</legend>
+
+    <div class="form-group">
+      <label for="email" class="block text-sm font-medium text-gray-700">
+        Email Address
+      </label>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        class="input-field mt-1"
+        required
+      >
+    </div>
+  </fieldset>
+</form>
+```
+
+### Validation and Error Handling
+
+- Show validation errors inline
+- Use appropriate ARIA attributes for errors
+- Provide clear success feedback
+- Maintain form state during validation
+
+```html
+<!-- Good: Error handling -->
+<div class="form-group">
+  <label for="password" class="block text-sm font-medium text-gray-700">
+    Password
+  </label>
+  <input
+    type="password"
+    id="password"
+    name="password"
+    class="input-field mt-1 border-red-500"
+    aria-describedby="password-error"
+    aria-invalid="true"
+  >
+  <p id="password-error" class="text-red-500 text-sm mt-1">
+    Password must be at least 8 characters long
+  </p>
+</div>
+```

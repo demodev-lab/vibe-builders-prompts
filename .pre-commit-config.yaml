@@ -1,0 +1,68 @@
+# https://pre-commit.com/
+# pre-commit install
+
+repos:
+  - repo: local
+    hooks:
+      - id: eslint-frontend
+        name: ESLint (JavaScript/TypeScript 코드 검사)
+        entry: bash -c 'cd frontend && pnpm eslint --fix .'
+        language: system
+        files: ^frontend/.*\.(js|jsx|ts|tsx)$
+        exclude: ^(frontend/node_modules/|frontend/build/|frontend/dist/)
+        pass_filenames: false
+        verbose: true
+
+      - id: prettier-frontend
+        name: Prettier (JavaScript/TypeScript 코드 포맷팅)
+        entry: bash -c 'cd frontend && pnpm prettier --write "**/*.{js,jsx,ts,tsx,css,json,md}"'
+        language: system
+        files: .^frontend/.*\.(js|jsx|ts|tsx|css|json|md)$
+        exclude: ^(frontend/node_modules/|frontend/build/|frontend/dist/)
+        pass_filenames: false
+        verbose: true
+
+      - id: ts-typecheck
+        name: TypeScript 타입 체크
+        entry: bash -c 'cd frontend && pnpm tsc --noEmit'
+        language: system
+        files: ^frontend/.*\.(ts|tsx)$
+        exclude: ^(frontend/node_modules/|frontend/build/|frontend/dist/)
+        pass_filenames: false
+        require_serial: true
+
+  # ---------COMMON ✅---------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: 후행 공백 제거
+        exclude: ^(frontend/node_modules/|backend/.venv/|.github/)
+
+      - id: end-of-file-fixer
+        name: 파일 끝 개행 추가
+        exclude: ^(frontend/node_modules/|backend/.venv/|frontend/public/)
+
+      - id: check-yaml
+        name: YAML 파일 검증
+        exclude: ^frontend/node_modules/
+
+      - id: check-json
+        name: JSON 파일 검증
+        exclude: ^frontend/node_modules/
+
+      - id: check-merge-conflict
+        name: 병합 충돌 검사
+
+      - id: detect-private-key
+        name: 민감한 개인키 검출
+
+  - repo: local
+    hooks:
+      - id: prevent-env-commit
+        name: .env 파일 커밋 방지
+        entry: |
+          bash -c 'echo -e "\033[31mERROR: .env 파일은 커밋할 수 없습니다. .env.example 파일을 대신 사용하세요.\033[0m" && exit 1'
+        language: system
+        files: \.env
+        exclude: \.env\.example$

@@ -1,0 +1,43 @@
+---
+description: Miscellaneous rules to get the AI to behave
+globs: *
+alwaysApply: true
+---
+# General rules for AI
+
+<!-- 프로젝트별 특화 내용들은 주석으로 표시하고 범용적으로 사용할 수 있도록 수정했습니다.
+실제 프로젝트에 맞게 수정하여 사용하세요. -->
+
+<!-- 프로젝트별 Current 객체 사용법 - 필요시 수정 -->
+<!--
+- Use `Current.user` for the current user. Do NOT use `current_user`.
+- Use `Current.family` for the current family. Do NOT use `current_family`.
+-->
+
+- Use appropriate current context objects for the application (e.g., `Current.user`, `current_user` helper)
+- Follow consistent naming conventions for current context access throughout the project
+
+- Prior to generating any code, carefully read the project conventions and guidelines
+  - Read [project-design.mdc](mdc:.cursor/rules/project-design.mdc) to understand the codebase architecture
+  - Read [project-conventions.mdc](mdc:.cursor/rules/project-conventions.mdc) to understand _how_ to write code for the codebase
+  - Read [ui-ux-design-guidelines.mdc](mdc:.cursor/rules/ui-ux-design-guidelines.mdc) to understand how to implement frontend code specifically (if applicable)
+
+<!-- 국제화 관련 - 프로젝트 요구사항에 따라 수정 -->
+- Follow project requirements for internationalization (i18n). If not using i18n, hardcode strings in the appropriate language for development speed.
+
+## Prohibited actions
+
+<!-- Rails 개발 시 일반적으로 피해야 할 작업들 -->
+- Do not run `rails server` in your responses unless specifically requested.
+- Do not run `touch tmp/restart.txt` automatically
+- Do not run `rails credentials` unless working with credentials is the specific task
+- Do not automatically run migrations without confirming the changes first
+
+## Development Best Practices
+
+- Always test changes in development environment before production
+- Use appropriate logging for debugging and monitoring
+- Follow security best practices for handling sensitive data
+- Use environment variables for configuration that varies between environments
+- Document complex business logic and architectural decisions
+- **Use Rails 8 Authentication Generator**: For basic authentication needs, prefer `bin/rails generate authentication` over external gems like Devise - it generates secure, maintainable authentication code with minimal complexity

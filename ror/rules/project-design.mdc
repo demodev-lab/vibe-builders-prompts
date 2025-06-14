@@ -1,0 +1,270 @@
+---
+description: This rule explains the system architecture and data flow of the Rails app
+globs: *
+alwaysApply: true
+---
+# Project Design Guide
+
+<!--
+이 파일은 Ruby on Rails 애플리케이션의 아키텍처와 도메인 설계 양식을 제공합니다.
+각 섹션을 프로젝트의 실제 도메인과 비즈니스 로직에 맞게 수정하여 사용하세요.
+-->
+
+This file outlines how the codebase is structured and how data flows through the app.
+
+## Application Architecture
+
+<!-- 프로젝트 설명을 여기에 작성하세요 -->
+This is a [프로젝트 타입 - 예: SaaS, E-commerce, CMS] application built in Ruby on Rails. The primary domain entities for this app are outlined below. For an authoritative overview of the relationships, [schema.rb](mdc:db/schema.rb) is the source of truth.
+
+## Core Domain Models
+
+### Users and Organizations
+
+<!--
+사용자와 조직 구조를 프로젝트에 맞게 정의하세요.
+일반적인 패턴들:
+- SaaS: Organization/Team + User
+- E-commerce: Account + User
+- 소셜 플랫폼: User (단일 레벨)
+- 마켓플레이스: Vendor + User
+-->
+
+**User Model Pattern:**
+- `[OrganizationModel]` - 구독, 설정, 주요 데이터들이 최상위 조직 단위로 관리됩니다.
+- `User` - 모든 세션과 인증이 사용자 단위로 관리됩니다. 사용자는 조직에 속하며 역할을 가질 수 있습니다.
+
+**일반적인 역할 관리:**
+```ruby
+# 예시: User 모델의 역할 관리
+class User < ApplicationRecord
+  belongs_to :[organization_model]
+
+  enum :role, { member: 0, admin: 1, owner: 2 }
+  # 또는: has_many :roles / has_many :permissions
+end
+```
+
+### Business Logic Models
+
+<!--
+프로젝트의 핵심 비즈니스 도메인 모델들을 정의하세요.
+
+예시 도메인들:
+- E-commerce: Product, Order, Cart, Payment
+- CMS: Article, Category, Comment, Media
+- 프로젝트 관리: Project, Task, Milestone, Time Entry
+- 교육: Course, Lesson, Student, Assignment
+- 헬스케어: Patient, Appointment, Medical Record
+- 금융: Account, Transaction, Budget, Investment
+-->
+
+### Core Business Models
+
+**주요 도메인 모델들을 여기에 정의하세요:**
+
+```ruby
+# 예시 1: E-commerce 도메인
+class Product < ApplicationRecord
+  belongs_to :category
+  has_many :order_items
+  has_many :reviews
+end
+
+class Order < ApplicationRecord
+  belongs_to :user
+  has_many :order_items
+  has_one :payment
+end
+```
+
+```ruby
+# 예시 2: 프로젝트 관리 도메인
+class Project < ApplicationRecord
+  belongs_to :[organization_model]
+  has_many :tasks
+  has_many :milestones
+end
+
+class Task < ApplicationRecord
+  belongs_to :project
+  belongs_to :assignee, class_name: 'User'
+end
+```
+
+### Polymorphic Associations (필요한 경우)
+
+Rails delegated types나 polymorphic associations을 사용하는 경우:
+
+```ruby
+# 예시: 다형성 연관관계
+class [BaseModel] < ApplicationRecord
+  delegated_type :implementation, types: %w[TypeA TypeB TypeC]
+  # 또는
+  # belongs_to :attachable, polymorphic: true
+end
+```
+
+## Data Flow and Processing
+
+### Background Processing
+
+<!--
+백그라운드 작업이 필요한 모델들을 정의하세요.
+예시: 이메일 발송, 데이터 동기화, 리포트 생성, 이미지 처리 등
+-->
+
+The application has background processing capabilities through the [syncable.rb](mdc:app/models/concerns/syncable.rb) concern, which represents any model that can have its data processed in the background.
+
+**Background processable models include:**
+```ruby
+# 예시: 백그라운드 작업이 필요한 모델들
+# - EmailCampaign (이메일 발송)
+# - DataImport (데이터 가져오기)
+# - ReportGeneration (리포트 생성)
+# - ImageProcessing (이미지 처리)
+```
+
+Each background job creates a [sync.rb](mdc:app/models/sync.rb) (또는 [job.rb]) record in the database, which keeps track of the status, any errors encountered, and acts as an audit table for processed data.
+
+## External Integrations
+
+### Third-party Service Integration
+
+<!-- 프로젝트에서 사용하는 외부 서비스들을 명시하세요 -->
+
+**외부 서비스 연동 모델들:**
+```ruby
+# 예시들 - 프로젝트에 맞게 선택/수정
+# - PaymentProvider (결제: Stripe, PayPal 등)
+# - EmailService (이메일: SendGrid, Mailgun 등)
+# - StorageService (파일 저장: AWS S3, Cloudinary 등)
+# - NotificationService (알림: Push, SMS 등)
+# - AnalyticsService (분석: Google Analytics, Mixpanel 등)
+# - AuthProvider (소셜 로그인: Google, GitHub 등)
+```
+
+External service metadata is stored in separate models while normalized data is stored in internal domain models.
+
+## Data Providers and Configuration
+
+<!--
+이 섹션은 재사용 가능한 패턴이므로 대부분의 프로젝트에서 활용 가능합니다.
+외부 서비스 연동이 많은 프로젝트에서 특히 유용합니다.
+-->
+
+The application utilizes configurable data providers to integrate with 3rd party services. Since the app can be run in different environments, data providers are _optional_ and must be configured at runtime.
+
+Data providers are configured through [registry.rb](mdc:app/models/provider/registry.rb) utilizing [setting.rb](mdc:app/models/setting.rb) for runtime parameters like API keys.
+
+There are two types of 3rd party data:
+
+1. **"Concept" data** - Generic data that can be provided by multiple services
+2. **One-off data** - Service-specific data
+
+### "Concept" Data
+
+For generic data types where multiple providers could be used (e.g., exchange rates, geocoding), we define interfaces in `app/models/provider/concepts/`.
+
+```
+app/models/
+  [model_name]/
+    provided.rb # <- Responsible for selecting the concept provider from the registry
+  provider.rb # <- Base provider class
+  provider/
+    registry.rb # <- Defines available providers by concept
+    concepts/
+      [concept_name].rb # <- defines the interface required for the concept
+    [provider_name].rb # <- Concrete provider implementation
+```
+
+### "Provided" Concerns
+
+Domain models use the `Provided` concern to access external data without coupling to specific providers:
+
+```ruby
+module [ModelName]::Provided
+  extend ActiveSupport::Concern
+
+  class_methods do
+    def provider
+      registry = Provider::Registry.for_concept(:[concept_name])
+      registry.get_provider(:[provider_name])
+    end
+
+    def fetch_external_data(params)
+      # Implementation
+    end
+  end
+end
+```
+
+## Application Patterns
+
+### Calculation and Processing
+
+Use dedicated calculator classes for complex business logic:
+
+```ruby
+# 예시: 복잡한 계산 로직
+class [DomainName]::Calculator
+  def initialize(model)
+    @model = model
+  end
+
+  def calculate
+    # 계산 로직
+  end
+end
+
+# 사용 예시들:
+# - PricingCalculator (가격 계산)
+# - TaxCalculator (세금 계산)
+# - ShippingCalculator (배송비 계산)
+# - CommissionCalculator (수수료 계산)
+# - ScoreCalculator (점수 계산)
+```
+
+### Error Handling and Monitoring
+
+- Use [sync.rb](mdc:app/models/sync.rb) or similar audit models to track processing status
+- Implement proper error handling for external service failures
+- Log important business events for debugging and monitoring
+
+### Testing Strategy
+
+- Test critical business logic thoroughly
+- Mock external service calls in tests
+- Use fixtures sparingly, create test data as needed
+- Focus on integration points and edge cases
+
+## Project-Specific Customization Guide
+
+### 1. 도메인 모델 정의 체크리스트
+
+- [ ] User와 조직 구조 결정 (single-tenant vs multi-tenant)
+- [ ] 핵심 비즈니스 모델들 식별
+- [ ] 모델 간 관계 정의 (1:1, 1:N, N:N)
+- [ ] 권한 및 역할 모델 설계
+- [ ] 다형성 연관이 필요한 부분 확인
+
+### 2. 외부 연동 계획
+
+- [ ] 필요한 외부 서비스들 목록 작성
+- [ ] API 키와 설정 관리 방법 결정
+- [ ] 에러 처리 및 재시도 로직 계획
+- [ ] 테스트 환경에서의 모킹 전략
+
+### 3. 백그라운드 작업 설계
+
+- [ ] 비동기 처리가 필요한 작업들 식별
+- [ ] 작업 우선순위와 큐 설계
+- [ ] 실패 처리 및 모니터링 계획
+- [ ] 성능 요구사항 확인
+
+### 4. 데이터 플로우 문서화
+
+- [ ] 주요 사용자 플로우별 데이터 흐름 정의
+- [ ] 상태 변화와 이벤트 처리 로직
+- [ ] 캐싱 전략과 데이터 일관성
+- [ ] 보안 및 접근 권한 확인

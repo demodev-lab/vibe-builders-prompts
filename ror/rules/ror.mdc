@@ -1,0 +1,357 @@
+---
+description: Rails 8 rules for Ruby on Rails apps.
+globs: "**/*.rb", "**/*.rake", "**/*.erb", "**/*.html.erb", "**/*.html.haml", "**/*.html.slim", "**/*.html.erb"
+alwaysApply: false
+---
+# Ruby on Rails 8 Development Guide
+
+- You MUST NOT try and generate a Rails app from scratch on your own by generating each file. For a NEW app you MUST use `rails new` first to generate all of the boilerplate files necessary.
+- Create an app in the current directory with `rails new .`
+- Use Tailwind CSS for styling. Use `--css tailwind` as an option on the `rails new` call to do this automatically.
+- Use Ruby 3.2+ and Rails 8.0+ practices.
+- Use the default Minitest approach for testing, do not use RSpec.
+- Default to using SQLite in development. `rails new` will do this automatically but take care if you write any custom SQL that it is SQLite compatible.
+- An app can be built with a devcontainer such as `rails new myapp --devcontainer` but only do this if requested directly.
+- Rails apps have a lot of directories to consider, such as app, config, db, etc.
+- Adhere to Rails conventions for file placement:
+  - Use `app/models` for business logic
+  - Use `app/controllers` for request handling
+  - Use `app/views` for presentation layer
+  - Use `config/routes.rb` for URL routing
+  - Use `db/migrate` for database schema changes
+
+## Rails 8 Core Features
+
+### Authentication Generator (New in Rails 8)
+- **Use Rails 8 Authentication Generator**: For basic authentication needs, prefer `bin/rails generate authentication` over external gems like Devise - it generates secure, maintainable authentication code with minimal complexity
+- The generator creates User and Session models with modern security practices
+- Provides a clean foundation that's easy to understand and modify
+
+```bash
+# Generate complete authentication system
+bin/rails generate authentication
+
+# This creates:
+# - User model with email/password authentication
+# - Session model for login management
+# - Controllers for registration, login, logout
+# - Views with forms and layouts
+# - Secure password handling with bcrypt
+```
+
+### Solid Cache (Rails 8 Default)
+- Rails 8 ships with Solid Cache as the default caching backend
+- Uses database-backed caching for better reliability and easier deployment
+- No need for separate Redis setup for basic caching needs
+
+```ruby
+# Configured automatically in Rails 8
+# config/environments/production.rb
+config.cache_store = :solid_cache_store
+```
+
+### Performance Enhancements
+- **Enable YJIT in production**: Ruby 3.1+ feature that provides 5-7% performance boost
+- **Optimize for Ruby 3.4+**: Take advantage of faster JSON parsing and improved memory management
+
+```ruby
+# Set in your deployment environment
+ENV['RUBY_YJIT_ENABLE'] = '1'
+
+# Or add to your production configuration
+export RUBY_YJIT_ENABLE=1
+```
+
+### Modern Asset Pipeline with Propshaft
+- Rails 8 uses Propshaft as the default asset pipeline
+- Simpler than Sprockets while maintaining essential features
+- Better integration with modern JavaScript tools
+
+```ruby
+# app/assets/config/manifest.js (automatically configured)
+//= link_tree ../images
+//= link_directory ../javascripts .js
+//= link_directory ../stylesheets .css
+```
+
+## Development Best Practices
+
+### Controllers: Keep Them Thin
+```ruby
+# ✅ DO: Simple controller actions
+class ArticlesController < ApplicationController
+  def show
+    @article = Article.find(params[:id])
+  end
+
+  def create
+    @article = Article.new(article_params)
+
+    if @article.save
+      redirect_to @article, notice: 'Article created successfully.'
+    else
+      render :new, status: :unprocessable_entity
+    end
+  end
+
+  private
+
+  def article_params
+    params.require(:article).permit(:title, :body, :published)
+  end
+end
+
+# ❌ DON'T: Business logic in controllers
+class ArticlesController < ApplicationController
+  def create
+    @article = Article.new(article_params)
+    @article.slug = @article.title.parameterize
+    @article.word_count = @article.body.split.length
+    @article.reading_time = (@article.word_count / 200.0).ceil
+
+    if @article.save
+      # Send email logic
+      # Update analytics
+      # Log activity
+      redirect_to @article
+    else
+      render :new
+    end
+  end
+end
+```
+
+### Models: Proper Business Logic Organization
+```ruby
+# ✅ DO: Use callbacks and validations appropriately
+class Article < ApplicationRecord
+  validates :title, presence: true, length: { maximum: 100 }
+  validates :body, presence: true
+
+  before_save :generate_slug
+  after_create :send_notification
+
+  scope :published, -> { where(published: true) }
+  scope :recent, -> { order(created_at: :desc) }
+
+  def reading_time
+    (word_count / 200.0).ceil
+  end
+
+  def excerpt(limit = 150)
+    body.truncate(limit)
+  end
+
+  private
+
+  def generate_slug
+    self.slug = title.parameterize
+  end
+
+  def send_notification
+    ArticleNotificationJob.perform_later(self)
+  end
+end
+```
+
+### Use Rails 8 Modern Testing Patterns
+```ruby
+# ✅ DO: Use simple, focused tests
+class ArticleTest < ActiveSupport::TestCase
+  test "should create article with valid attributes" do
+    article = Article.new(
+      title: "Test Article",
+      body: "This is a test article body with enough content."
+    )
+
+    assert article.save
+    assert_equal "test-article", article.slug
+  end
+
+  test "should calculate reading time" do
+    body = "word " * 200  # 200 words
+    article = articles(:one)
+    article.update(body: body)
+
+    assert_equal 1, article.reading_time
+  end
+
+  test "should validate presence of title" do
+    article = Article.new(body: "Test body")
+
+    assert_not article.valid?
+    assert_includes article.errors[:title], "can't be blank"
+  end
+end
+
+# ✅ DO: Integration tests for critical user flows
+class ArticleFlowTest < ActionDispatch::IntegrationTest
+  test "user can create and view article" do
+    post articles_path, params: {
+      article: {
+        title: "New Article",
+        body: "Article content here"
+      }
+    }
+
+    assert_redirected_to article_path(Article.last)
+
+    follow_redirect!
+    assert_select "h1", "New Article"
+  end
+end
+```
+
+### Database Best Practices
+```ruby
+# ✅ DO: Write clear, reversible migrations
+class CreateArticles < ActiveRecord::Migration[8.0]
+  def change
+    create_table :articles do |t|
+      t.string :title, null: false
+      t.text :body, null: false
+      t.string :slug, null: false
+      t.boolean :published, default: false
+      t.integer :word_count, default: 0
+
+      t.timestamps
+    end
+
+    add_index :articles, :slug, unique: true
+    add_index :articles, :published
+  end
+end
+
+# ✅ DO: Add database constraints for data integrity
+class AddConstraintsToArticles < ActiveRecord::Migration[8.0]
+  def change
+    change_column_null :articles, :title, false
+    add_check_constraint :articles, "length(title) <= 100", name: "title_length_check"
+  end
+end
+```
+
+### Background Jobs with Rails 8
+```ruby
+# ✅ DO: Use Rails 8's improved job system
+class ArticleNotificationJob < ApplicationJob
+  queue_as :default
+
+  def perform(article)
+    # Send notifications to subscribers
+    article.subscribers.each do |subscriber|
+      ArticleMailer.new_article_notification(subscriber, article).deliver_now
+    end
+  end
+end
+
+# ✅ DO: Handle job failures gracefully
+class EmailJob < ApplicationJob
+  retry_on StandardError, attempts: 3, wait: :exponentially_longer
+
+  discard_on ActiveJob::DeserializationError
+
+  def perform(user_id, email_type)
+    user = User.find(user_id)
+    UserMailer.send(email_type, user).deliver_now
+  rescue User::NotFoundError
+    Rails.logger.warn "User #{user_id} not found for email #{email_type}"
+  end
+end
+```
+
+## Rails 8 Security Best Practices
+
+### Strong Parameters and Validation
+```ruby
+# ✅ DO: Layer security with strong parameters + model validation
+class UsersController < ApplicationController
+  def create
+    @user = User.new(user_params)
+
+    if @user.save
+      redirect_to @user
+    else
+      render :new, status: :unprocessable_entity
+    end
+  end
+
+  private
+
+  def user_params
+    params.require(:user).permit(:name, :email, :age)
+  end
+end
+
+class User < ApplicationRecord
+  validates :email, presence: true, format: { with: URI::MailTo::EMAIL_REGEXP }
+  validates :age, numericality: { greater_than: 0, less_than: 120 }
+
+  normalizes :email, with: -> email { email.strip.downcase }
+end
+```
+
+### Modern Rails 8 Authentication
+```ruby
+# ✅ DO: Leverage Rails 8 authentication generator patterns
+class SessionsController < ApplicationController
+  def create
+    user = User.authenticate_by(email: params[:email], password: params[:password])
+
+    if user
+      login(user)
+      redirect_to root_path, notice: "Signed in successfully"
+    else
+      redirect_to new_session_path, alert: "Invalid email or password"
+    end
+  end
+
+  private
+
+  def login(user)
+    session[:user_id] = user.id
+  end
+end
+```
+
+## Deployment and Production Considerations
+
+### Rails 8 Production Setup
+```ruby
+# ✅ DO: Configure Rails 8 for production efficiency
+# config/environments/production.rb
+Rails.application.configure do
+  # Enable YJIT for performance
+  config.yjit = true if defined?(RubyVM::YJIT.enable)
+
+  # Use Solid Cache for database-backed caching
+  config.cache_store = :solid_cache_store
+
+  # Enable gzip compression
+  config.middleware.use Rack::Deflater
+
+  # Use proper logging
+  config.log_level = :info
+  config.log_tags = [:request_id]
+end
+```
+
+### Performance Monitoring
+```ruby
+# ✅ DO: Add basic performance monitoring
+class ApplicationController < ActionController::Base
+  around_action :log_performance
+
+  private
+
+  def log_performance
+    start_time = Time.current
+    yield
+    duration = Time.current - start_time
+
+    Rails.logger.info "#{controller_name}##{action_name} completed in #{duration.round(3)}s"
+  end
+end
+```
+
+This guide focuses on Rails 8's stable, production-ready features that provide immediate value without adding unnecessary complexity to your application.

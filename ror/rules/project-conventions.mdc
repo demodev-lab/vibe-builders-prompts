@@ -1,0 +1,117 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Project Conventions
+
+<!--
+이 파일은 Ruby on Rails 프로젝트의 기본 컨벤션을 정의합니다.
+프로젝트별 특화된 내용은 주석으로 표시되어 있으니 필요에 따라 수정하여 사용하세요.
+-->
+
+## Project Tech Stack
+
+<!-- 프로젝트에 맞게 수정하세요 -->
+- Web framework: Ruby on Rails
+  - Minitest + fixtures for testing
+  - Propshaft for asset pipeline
+  - Hotwire Turbo/Stimulus for SPA-like UI/UX
+  - TailwindCSS for styles
+  - Lucide Icons for icons
+  - Gemini for AI chat
+- Database: PostgreSQL
+- Jobs: Sidekiq + Redis
+- External
+  - Payments: Lemon Squeezy
+  - Email: SendGrid
+  - File Storage: AWS S3
+  -->
+
+## Project conventions
+
+<!-- 이 컨벤션들은 Rails 프로젝트 작성 시 사용해야 합니다 -->
+
+### Convention 1: Minimize dependencies, vanilla Rails is plenty
+
+Dependencies are a natural part of building software, but we aim to minimize them when possible to keep this codebase easy to understand, maintain, and contribute to.
+
+- Push Rails to its limits before adding new dependencies
+- When a new dependency is added, there must be a strong technical or business reason to add it
+- When adding dependencies, you should favor old and reliable over new and flashy
+
+### Convention 2: Leverage POROs and concerns over "service objects"
+
+This codebase adopts a "skinny controller, fat models" convention. Furthermore, we put almost _everything_ directly in the `app/models/` folder and avoid separate folders for business logic such as `app/services/`.
+
+- Organize large pieces of business logic into Rails concerns and POROs (Plain ole' Ruby Objects)
+- While a Rails concern _may_ offer shared functionality (i.e. "duck types"), it can also be a "one-off" concern that is only included in one place for better organization and readability.
+- When concerns are used for code organization, they should be organized around the "traits" of a model; not for simply moving code to another spot in the codebase.
+- When possible, models should answer questions about themselves—for example, we might have a method, `user.full_name` that returns the user's full name. We prefer this over something more service-like such as `UserFormatter.new(user).full_name`.
+
+### Convention 3: Leverage Hotwire, write semantic HTML, CSS, and JS, prefer server-side solutions
+
+- Native HTML is always preferred over JS-based components
+  - Example 1: Use `<dialog>` element for modals instead of creating a custom component
+  - Example 2: Use `<details><summary>...</summary></details>` for disclosures rather than custom components
+- Leverage Turbo frames to break up the page over JS-driven client-side solutions
+  <!-- 프로젝트별 예시로 수정 필요
+  - Example 1: A good example of turbo frame usage is in [application.html.erb](mdc:app/views/layouts/application.html.erb) where we load specific controller actions in a turbo frame
+  -->
+- Leverage query params in the URL for state over local storage and sessions. If absolutely necessary, utilize the DB for persistent state.
+- Use Turbo streams to enhance functionality, but do not solely depend on it
+- Format currencies, numbers, dates, and other values server-side, then pass to Stimulus controllers for display only
+- Keep client-side code for where it truly shines. For example, bulk selection controllers where server-side solutions would degrade the user experience significantly.
+- Always use a consistent icon helper method for icons. <!-- 프로젝트별 helper 메소드 명시 -->
+
+The Hotwire suite (Turbo/Stimulus) works very well with these native elements and we optimize for this.
+
+### Convention 4: Optimize for simplicity and clarity
+
+All code should maximize readability and simplicity.
+
+- Prioritize good OOP domain design over performance
+- Only focus on performance for critical and global areas of the codebase; otherwise, don't sweat the small stuff.
+  - Example 1: be mindful of loading large data payloads in global layouts
+  - Example 2: Avoid N+1 queries
+
+### Convention 5: Use consistent testing approach, minimize test fixtures
+
+<!-- 프로젝트에 맞는 테스팅 프레임워크를 선택하세요 -->
+We use Minitest + Fixtures for testing to maximize familiarity and predictability.
+<!-- 또는 RSpec을 사용하는 경우: We use RSpec for testing. -->
+
+- Always use consistent testing framework throughout the project.
+- Keep fixtures to a minimum. Most models should have 2-3 fixtures maximum that represent the "base cases" for that model. "Edge cases" should be created on the fly, within the context of the test which it is needed.
+- For tests that require a large number of fixture records to be created, use Rails test helpers to act as a "factory" for creating these.
+- Take a minimal approach to testing—only test the absolutely critical code paths that will significantly increase developer confidence
+
+#### Convention 5a: Write minimal, effective tests
+
+- Use system tests sparingly as they increase the time to complete the test suite
+- Only write tests for critical and important code paths
+- Write tests as you go, when required
+- Take a practical approach to testing. Tests are effective when their presence _significantly increases confidence in the codebase_.
+
+Below are examples of necessary vs. unnecessary tests:
+
+```rb
+# GOOD!!
+# Necessary test - in this case, we're testing critical domain business logic
+test "processes user data correctly" do
+  # ... 프로젝트별 비즈니스 로직 테스트 예시
+end
+
+# BAD!!
+# Unnecessary test - in this case, this is simply testing ActiveRecord's functionality
+test "saves user" do
+  user = User.new(name: "Test User", email: "test@example.com")
+  assert user.save
+end
+```
+
+### Convention 6: Use ActiveRecord for complex validations, DB for simple ones, keep business logic out of DB
+
+- Enforce `null` checks, unique indexes, and other simple validations in the DB
+- ActiveRecord validations _may_ mirror the DB level ones, but not 100% necessary. These are for convenience when error handling in forms. Always prefer client-side form validation when possible.
+- Complex validations and business logic should remain in ActiveRecord

@@ -1,0 +1,95 @@
+{
+  "mcpServers": {
+    "sequential-thinking": {
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "context7": {
+      "command": "bunx",
+      "args": ["@upstash/context7-mcp"]
+    },
+    "playwright": {
+      "command": "bunx",
+      "args": ["@playwright/mcp@latest"]
+    },
+    "allpepper-memory-bank": {
+      "command": "bunx",
+      "args": ["@allpepper/memory-bank-mcp"],
+      "env": {
+        "MEMORY_BANK_ROOT": "/Users/seungwonan/Dev/memory-bank"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "memory_bank_read",
+        "memory_bank_write",
+        "memory_bank_update",
+        "list_projects",
+        "list_project_files"
+      ]
+    },
+    "mem0-memory-mcp": {
+      "command": "bunx",
+      "args": [
+        "@smithery/cli@latest",
+        "run",
+        "@mem0ai/mem0-memory-mcp",
+        "--key",
+        "your_smithery_api_key",
+        "--profile",
+        "ok-marmoset-tfEaWS"
+      ]
+    },
+    "supabase": {
+      "command": "bunx",
+      "args": [
+        "@supabase/mcp-server-supabase@latest",
+        "--access-token",
+        "your_supabase_access_token"
+      ]
+    },
+    "notionApi": {
+      "command": "bunx",
+      "args": ["@notionhq/notion-mcp-server"],
+      "env": {
+        "OPENAPI_MCP_HEADERS": "{\"Authorization\": \"Bearer your_notion_access_token\", \"Notion-Version\": \"2022-06-28\" }"
+      }
+    },
+    "github": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "your_github_personal_access_token"
+      }
+    },
+    "interactive-feedback-mcp": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/Users/seungwonan/Dev/3-tool/mcp/interactive-feedback-mcp",
+        "run",
+        "server.py"
+      ],
+      "timeout": 600,
+      "autoApprove": ["interactive_feedback"]
+    },
+    "TalkToFigma": {
+      "command": "bunx",
+      "args": ["cursor-talk-to-figma-mcp@latest"]
+    },
+    "Framelink Figma MCP": {
+      "command": "bunx",
+      "args": [
+        "figma-developer-mcp",
+        "--figma-api-key=your_figma_api_key",
+        "--stdio"
+      ]
+    }
+  }
+}
